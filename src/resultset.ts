@@ -167,8 +167,6 @@ export const diffCoverage = (
     }
   }
 
-  if (fileDiffs.length === 0) return undefined;
-
   return {
     includesBranches,
     fileDiffs,
