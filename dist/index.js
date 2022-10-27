@@ -15568,15 +15568,20 @@ const deleteComments = async () => {
     return Promise.all(comments.map(({ id: comment_id }) => octokit.rest.issues.deleteComment({ ...github_1.context.repo, comment_id })));
 };
 const run = async () => {
+    console.log("Running");
     (0, helpers_1.assert)(github_1.context.eventName === 'pull_request', 'This action only makes sense for PRs');
+    console.log("Loading coverage files");
     const [baseline, current] = await Promise.all([
         readCoverage(baselinePath),
         readCoverage(currentPath),
     ]);
+    console.log("Generating diff");
     const diff = (0, resultset_1.diffCoverage)(baseline, current, process.env['GITHUB_WORKSPACE']);
     if (diff === undefined)
         return;
+    console.log("Deleting old comments");
     await deleteComments();
+    console.log("Adding new comment");
     await octokit.rest.issues.createComment({ ...issue, body: (0, report_1.report)(diff) });
 };
 run().catch((error) => {

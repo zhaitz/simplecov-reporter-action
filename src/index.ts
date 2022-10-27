@@ -44,19 +44,24 @@ const deleteComments = async () => {
 };
 
 const run = async () => {
+  console.log("Running")
   assert(context.eventName === 'pull_request', 'This action only makes sense for PRs');
 
+  console.log("Loading coverage files")
   const [baseline, current] = await Promise.all([
     readCoverage(baselinePath),
     readCoverage(currentPath),
   ]);
 
+  console.log("Generating diff")
   const diff = diffCoverage(baseline, current, process.env['GITHUB_WORKSPACE']);
 
   if (diff === undefined) return;
 
+  console.log("Deleting old comments")
   await deleteComments();
 
+  console.log("Adding new comment")
   await octokit.rest.issues.createComment({ ...issue, body: report(diff) });
 };
 
