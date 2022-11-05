@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { combineResults, nonNullable } from './helpers';
+import * as Codeowners from 'codeowners';
 
 const Lines = z.number().or(z.null()).array();
 
@@ -64,19 +65,19 @@ const consolidate = (resultSet: ResultSet): Result => {
   return results.reduce(combineResults);
 };
 
-const combineStats = (a: Stats, b: Stats): Stats => {
+const combineStats = (a: Stats | undefined, b: Stats | undefined): Stats => {
   const lineStats = {
     includesBranches: false as const,
-    lines: a.lines + b.lines,
-    linesCovered: a.linesCovered + b.linesCovered,
+    lines: (a?.lines ?? 0) + (b?.lines ?? 0),
+    linesCovered: (a?.linesCovered ?? 0) + (b?.linesCovered ?? 0),
   };
 
   const branchStats =
-    a.includesBranches || b.includesBranches
+    a?.includesBranches || b?.includesBranches
       ? {
           includesBranches: true as const,
-          branches: (a.branches ?? 0) + (b.branches ?? 0),
-          branchesCovered: (a.branchesCovered ?? 0) + (b.branchesCovered ?? 0),
+          branches: (a?.branches ?? 0) + (b?.branches ?? 0),
+          branchesCovered: (a?.branchesCovered ?? 0) + (b?.branchesCovered ?? 0),
         }
       : {};
 
@@ -136,9 +137,14 @@ interface FileDiff extends StatsDiff {
   filename: string;
 }
 
+interface OwnerDiff extends StatsDiff {
+  ownerName: string;
+}
+
 export interface CoverageDiff {
   includesBranches: boolean;
   fileDiffs: FileDiff[];
+  ownerDiffs: OwnerDiff[];
   totalDiff: StatsDiff;
 }
 
@@ -147,6 +153,8 @@ export const diffCoverage = (
   currentCoverage: Coverage,
   baseDir?: string,
 ): CoverageDiff | undefined => {
+  const owners = new Codeowners(baseDir);
+
   const fileRegex = new RegExp(`^${baseDir}/?`);
   const includesBranches = baselineCoverage.includesBranches || currentCoverage.includesBranches;
 
@@ -156,20 +164,29 @@ export const diffCoverage = (
   filenames.sort();
 
   const fileDiffs: FileDiff[] = [];
+  const ownerDiffMap: Map<string, OwnerDiff> = new Map();
 
   for (const file of filenames) {
+    const filename = file.replace(fileRegex, '');
     const baseline = baselineCoverage.fileStats.get(file);
     const current = currentCoverage.fileStats.get(file);
 
     if (current != null && changed(baseline, current)) {
-      const filename = file.replace(fileRegex, '');
       fileDiffs.push({ filename, baseline, current });
+    }
+
+    const ownerNames = owners.getOwner(filename);
+    for (const ownerName of ownerNames) {
+      const prevDiff = ownerDiffMap.get(ownerName);
+
+      ownerDiffMap.set(ownerName, { ownerName, baseline: combineStats(prevDiff?.baseline, baseline), current: combineStats(prevDiff?.current, current) });
     }
   }
 
   return {
     includesBranches,
     fileDiffs,
+    ownerDiffs: Array.from(ownerDiffMap.values()),
     totalDiff: { baseline: baselineCoverage.totalStats, current: currentCoverage.totalStats },
   };
 };

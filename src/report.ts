@@ -58,8 +58,10 @@ const row = (branches: boolean, label: string, { baseline, current }: StatsDiff)
   return `|${columns.join('|')}|`;
 };
 
-const totals = ({ includesBranches, totalDiff }: CoverageDiff) =>
-  `${header(includesBranches)}\n${row(includesBranches, '**Totals**', totalDiff)}`;
+const totals = ({ includesBranches, totalDiff, ownerDiffs }: CoverageDiff) => {
+  const rows = ownerDiffs.map(({ ownerName, ...diff }) => row(includesBranches, ownerName.replace('@', '').replace('indie-technologies/', ''), diff)); 
+  return `${header(includesBranches)}\n${rows.join('\n')}\n${row(includesBranches, '**Totals**', totalDiff)}`;
+}
 
 const files = ({ includesBranches, fileDiffs }: CoverageDiff) => {
   const rows = fileDiffs.map(({ filename, ...diff }) => row(includesBranches, filename, diff));
