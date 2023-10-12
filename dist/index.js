@@ -19320,11 +19320,35 @@ const files = ({ includesBranches, fileDiffs }) => {
     const rows = fileDiffs.map(({ filename, ...diff }) => row(includesBranches, filename, diff));
     return `${header(includesBranches)}\n${rows.join('\n')}`;
 };
-const comment = (totalTable, fileTable) => `
+const filterFilesWithReducedCoverage = (branches, { baseline, current }) => {
+    if (!baseline) {
+        return false;
+    }
+    if (branches && baseline.branchesCovered && current.branchesCovered) {
+        if (baseline.branchesCovered > current.branchesCovered) {
+            return true;
+        }
+    }
+    if (baseline.linesCovered && current.linesCovered) {
+        if (baseline.linesCovered > current.linesCovered) {
+            return true;
+        }
+    }
+    return false;
+};
+const filesWithReducedCoverage = ({ includesBranches, fileDiffs }) => {
+    const filteredFileDiffs = fileDiffs.filter((file) => filterFilesWithReducedCoverage(includesBranches, file));
+    const rows = filteredFileDiffs.map(({ filename, ...diff }) => row(includesBranches, filename, diff));
+    return `${header(includesBranches)}\n${rows.join('\n')}`;
+};
+const comment = (totalTable, fileTable, filesWithReducedCoverage) => `
 <!-- ${exports.marker} marker so we can delete -->
 ## Ruby Test Coverage
 
 ${totalTable}
+
+## Files with reduced coverage
+${filesWithReducedCoverage}
 
 <details>
 <summary>File Changes</summary>
@@ -19333,7 +19357,7 @@ ${fileTable}
 
 </details>
 `;
-const report = (diff) => /**/ comment(totals(diff), files(diff));
+const report = (diff) => /**/ comment(totals(diff), files(diff), filesWithReducedCoverage(diff));
 exports.report = report;
 
 
