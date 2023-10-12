@@ -100,8 +100,10 @@ const comment = (totalTable: string, fileTable: string, filesWithReducedCoverage
 
 ${totalTable}
 
+${filesWithReducedCoverage.length > 0 ? `
 ## Files with reduced coverage
 ${filesWithReducedCoverage}
+` : ''}
 
 <details>
 <summary>File Changes</summary>
