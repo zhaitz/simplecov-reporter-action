@@ -59,7 +59,7 @@ const row = (branches: boolean, label: string, { baseline, current }: StatsDiff)
 };
 
 const totals = ({ includesBranches, totalDiff, ownerDiffs }: CoverageDiff) => {
-  const rows = ownerDiffs.map(({ ownerName, ...diff }) => row(includesBranches, ownerName.replace('@', '').replace('indie-technologies/', ''), diff)); 
+  const rows = ownerDiffs.map(({ ownerName, ...diff }) => row(includesBranches, ownerName.replace('@', '').replace('indie-technologies/', ''), diff));
   return `${header(includesBranches)}\n${rows.join('\n')}\n${row(includesBranches, '**Totals**', totalDiff)}`;
 }
 
@@ -68,11 +68,42 @@ const files = ({ includesBranches, fileDiffs }: CoverageDiff) => {
   return `${header(includesBranches)}\n${rows.join('\n')}`;
 };
 
-const comment = (totalTable: string, fileTable: string) => `
+const filterFilesWithReducedCoverage = (branches: boolean, { baseline, current }: StatsDiff) => {
+  if (!baseline) {
+    return false;
+  }
+
+  if (branches && baseline.branchesCovered && current.branchesCovered) {
+    if (baseline.branchesCovered > current.branchesCovered) {
+      return true;
+    }
+  }
+
+  if (baseline.linesCovered && current.linesCovered) {
+    if (baseline.linesCovered > current.linesCovered) {
+      return true;
+    }
+  }
+
+  return false;
+};
+
+const filesWithReducedCoverage = ({ includesBranches, fileDiffs }: CoverageDiff) => {
+  const filteredFileDiffs = fileDiffs.filter((file) => filterFilesWithReducedCoverage(includesBranches, file));
+  const rows = filteredFileDiffs.map(({ filename, ...diff }) => row(includesBranches, filename, diff));
+  return `${header(includesBranches)}\n${rows.join('\n')}`;
+};
+
+const comment = (totalTable: string, fileTable: string, filesWithReducedCoverage: string) => `
 <!-- ${marker} marker so we can delete -->
 ## Ruby Test Coverage
 
 ${totalTable}
+
+${filesWithReducedCoverage.length > 0 ? `
+## Files with reduced coverage
+${filesWithReducedCoverage}
+` : ''}
 
 <details>
 <summary>File Changes</summary>
@@ -82,4 +113,4 @@ ${fileTable}
 </details>
 `;
 
-export const report = (diff: CoverageDiff) => /**/ comment(totals(diff), files(diff));
+export const report = (diff: CoverageDiff) => /**/ comment(totals(diff), files(diff), filesWithReducedCoverage(diff));
